@@ -266,7 +266,7 @@ async function handleLinkPaysSolver(targetPage) {
     log('LinkPays redirect page detected. Starting automation check...', 'info');
 
     // Poll every 1 second up to 15 seconds to handle loading/countdowns and solve inside iframes
-    const maxAttempts = 15;
+    const maxAttempts = 20;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       await new Promise(r => setTimeout(r, 1000));
       if (targetPage.isClosed()) return;
@@ -274,17 +274,31 @@ async function handleLinkPaysSolver(targetPage) {
       let clicked = false;
       const frames = targetPage.frames();
       for (const frame of frames) {
+        if (frame.isDetached()) continue;
+        
+        // Skip cloudflare challenges as they don't hold the button
+        if (frame.url().includes('challenges.cloudflare.com')) continue;
+
         try {
           clicked = await frame.evaluate(() => {
             const elements = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"]'));
             const target = elements.find(el => {
               const text = el.textContent.trim().toLowerCase();
               const value = el.value ? el.value.trim().toLowerCase() : '';
-              return text.includes('continue to next') || value.includes('continue to next');
+              const id = el.id ? el.id.toLowerCase() : '';
+              return text.includes('continue to next') || value.includes('continue to next') || id === 'gobtn';
             });
+            
             if (target) {
-              target.click();
-              return true;
+              const rect = target.getBoundingClientRect();
+              const isVisible = rect.width > 0 && rect.height > 0;
+              const isDisabled = target.disabled || target.getAttribute('disabled') !== null;
+              
+              // Only click if the button is visible and NOT disabled (waiting for countdowns)
+              if (isVisible && !isDisabled) {
+                target.click();
+                return true;
+              }
             }
             return false;
           });
@@ -303,11 +317,11 @@ async function handleLinkPaysSolver(targetPage) {
       }
 
       if (attempt % 5 === 0) {
-        log(`Waiting for "Continue to Next" button... (Attempt ${attempt}/${maxAttempts})`, 'info');
+        log(`Waiting for "Continue to Next" button to enable... (Attempt ${attempt}/${maxAttempts})`, 'info');
       }
     }
 
-    log('"Continue to Next" button not found or could not be clicked after 15 seconds.', 'warning');
+    log('"Continue to Next" button was not enabled or clicked after 20 seconds.', 'warning');
   } catch (err) {
     log(`LinkPays automation failed: ${err.message}`, 'warning');
   }
