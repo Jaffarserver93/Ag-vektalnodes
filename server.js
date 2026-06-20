@@ -115,11 +115,15 @@ setInterval(async () => {
 }, 1000);
 
 // Live Screenshot Loop
+let isScreenshotLoopActive = false;
 let screenshotTimeout = null;
 async function captureScreenshotLoop() {
   if (botStatus !== 'running' || !page || page.isClosed()) {
+    isScreenshotLoopActive = false;
     return;
   }
+
+  isScreenshotLoopActive = true;
 
   // Only take screenshots when clients are listening to conserve resource utilization
   if (wss.clients.size > 0) {
@@ -289,7 +293,9 @@ async function startBot() {
     );
 
     // Start screenshot loop immediately to show initial loading progress on dashboard
-    captureScreenshotLoop();
+    if (!isScreenshotLoopActive) {
+      captureScreenshotLoop();
+    }
 
     // Page state handlers
     page.on('console', (msg) => {
@@ -339,6 +345,7 @@ async function stopBot() {
   log('Shutting down browser session...', 'info');
   botStatus = 'stopped';
   uptimeStart = null;
+  isScreenshotLoopActive = false;
 
   if (screenshotTimeout) {
     clearTimeout(screenshotTimeout);
@@ -426,8 +433,8 @@ wss.on('connection', (ws) => {
     })
   );
 
-  // Resume frame captures if session is active
-  if (botStatus === 'running') {
+  // Resume frame captures if session is active and not already running
+  if (botStatus === 'running' && !isScreenshotLoopActive) {
     captureScreenshotLoop();
   }
 
