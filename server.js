@@ -32,6 +32,7 @@ const wss = new WebSocket.Server({ server });
 // Application State
 let browser = null;
 let page = null;
+let mainPage = null; // Stores reference to the primary VektalNodes tab
 let botStatus = 'stopped'; // 'stopped' or 'running'
 let uptimeStart = null;
 const logs = [];
@@ -164,7 +165,7 @@ async function startAfkLoop() {
           timeout: 60000,
         });
       }
-    } else {
+    } else if (currentUrl.includes('/earn')) {
       log('Simulating AFK active check...', 'info');
 
       // 1. Hover/Move Mouse
@@ -199,6 +200,8 @@ async function startAfkLoop() {
         await page.mouse.click(x, y);
         log(`Simulated neutral click at coordinates [${x}, ${y}]`, 'info');
       }
+    } else {
+      log(`Viewing active redirect tab: ${currentUrl} (AFK simulation paused for manual interaction)`, 'info');
     }
   } catch (err) {
     log(`AFK execution error: ${err.message}`, 'warning');
@@ -314,6 +317,39 @@ async function startBot() {
 
     const pages = await browser.pages();
     page = pages[0] || (await browser.newPage());
+    mainPage = page;
+
+    // Listen for newly opened browser tabs (e.g. LinkPays redirection)
+    browser.on('targetcreated', async (target) => {
+      if (target.type() === 'page') {
+        try {
+          const newPage = await target.page();
+          if (!newPage) return;
+
+          // Wait a brief moment for page URL to populate
+          await new Promise(r => setTimeout(r, 1000));
+          const newUrl = newPage.url();
+
+          // Skip default blank pages or the main page itself
+          if (newUrl === 'about:blank' || (mainPage && newPage === mainPage)) {
+            return;
+          }
+
+          log(`Redirect tab detected: "${await newPage.title()}" (${newUrl})`, 'info');
+
+          // Switch active view and interaction page to the new tab
+          page = newPage;
+
+          // Revert back when tab is closed
+          newPage.on('close', () => {
+            log('Redirect tab closed. Reverting active view back to main page.', 'info');
+            page = mainPage;
+          });
+        } catch (err) {
+          log(`Error tracking redirect tab: ${err.message}`, 'debug');
+        }
+      }
+    });
 
     // Spoof client environment characteristics
     await page.setUserAgent(
