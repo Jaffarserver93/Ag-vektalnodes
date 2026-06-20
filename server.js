@@ -3,8 +3,24 @@ const http = require('http');
 const WebSocket = require('ws');
 const path = require('path');
 const os = require('os');
+const fs = require('fs');
 const puppeteer = require('puppeteer-extra');
 const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+
+// Load environment variables from .env if it exists
+if (fs.existsSync(path.join(__dirname, '.env'))) {
+  const envContent = fs.readFileSync(path.join(__dirname, '.env'), 'utf-8');
+  envContent.split(/\r?\n/).forEach((line) => {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) return;
+    const separatorIdx = trimmed.indexOf('=');
+    if (separatorIdx > 0) {
+      const key = trimmed.substring(0, separatorIdx).trim();
+      const val = trimmed.substring(separatorIdx + 1).trim().replace(/^["']|["']$/g, '');
+      process.env[key] = val;
+    }
+  });
+}
 
 // Enable Puppeteer stealth
 puppeteer.use(StealthPlugin());
@@ -133,45 +149,107 @@ async function startAfkLoop() {
   if (botStatus !== 'running' || !page || page.isClosed()) return;
 
   try {
-    log('Simulating AFK active check...', 'info');
-
-    // 1. Hover/Move Mouse
-    const x = Math.floor(Math.random() * (config.viewportWidth - 100)) + 50;
-    const y = Math.floor(Math.random() * (config.viewportHeight - 100)) + 50;
-    await page.mouse.move(x, y, { steps: 5 });
-
-    // 2. Tiny Scroll Simulation
-    await page.evaluate(() => {
-      window.scrollBy(0, 80);
-      setTimeout(() => window.scrollBy(0, -80), 400);
-    });
-
-    // 3. Automated Selector click or neutral click
-    if (config.clickSelector) {
-      const clicked = await page.evaluate((sel) => {
-        const el = document.querySelector(sel);
-        if (el) {
-          el.click();
-          return true;
-        }
-        return false;
-      }, config.clickSelector);
-
-      if (clicked) {
-        log(`Clicked custom selector: "${config.clickSelector}"`, 'info');
-      } else {
-        log(`Selector "${config.clickSelector}" not found on page`, 'warning');
+    const currentUrl = page.url();
+    if (currentUrl.includes('/login')) {
+      log('Detected session expiration/redirect to login page. Attempting automated authentication...', 'warning');
+      const loginSuccess = await handleAutoLogin();
+      if (loginSuccess) {
+        log(`Navigating to target page: ${config.targetUrl}...`, 'info');
+        await page.goto(config.targetUrl, {
+          waitUntil: 'domcontentloaded',
+          timeout: 60000,
+        });
       }
     } else {
-      // Perform a safe click on neutral coordinate
-      await page.mouse.click(x, y);
-      log(`Simulated neutral click at coordinates [${x}, ${y}]`, 'info');
+      log('Simulating AFK active check...', 'info');
+
+      // 1. Hover/Move Mouse
+      const x = Math.floor(Math.random() * (config.viewportWidth - 100)) + 50;
+      const y = Math.floor(Math.random() * (config.viewportHeight - 100)) + 50;
+      await page.mouse.move(x, y, { steps: 5 });
+
+      // 2. Tiny Scroll Simulation
+      await page.evaluate(() => {
+        window.scrollBy(0, 80);
+        setTimeout(() => window.scrollBy(0, -80), 400);
+      });
+
+      // 3. Automated Selector click or neutral click
+      if (config.clickSelector) {
+        const clicked = await page.evaluate((sel) => {
+          const el = document.querySelector(sel);
+          if (el) {
+            el.click();
+            return true;
+          }
+          return false;
+        }, config.clickSelector);
+
+        if (clicked) {
+          log(`Clicked custom selector: "${config.clickSelector}"`, 'info');
+        } else {
+          log(`Selector "${config.clickSelector}" not found on page`, 'warning');
+        }
+      } else {
+        // Perform a safe click on neutral coordinate
+        await page.mouse.click(x, y);
+        log(`Simulated neutral click at coordinates [${x}, ${y}]`, 'info');
+      }
     }
   } catch (err) {
     log(`AFK execution error: ${err.message}`, 'warning');
   }
 
   afkTimeout = setTimeout(startAfkLoop, config.afkInterval * 1000);
+}
+
+// Automated Login Helper
+async function handleAutoLogin() {
+  if (!page || page.isClosed()) return false;
+
+  const email = process.env.EMAIL;
+  const password = process.env.PASSWORD;
+
+  if (!email || !password) {
+    log('Auto-login aborted: EMAIL or PASSWORD environment variables are not set in .env', 'error');
+    return false;
+  }
+
+  try {
+    log('Waiting for login form fields...', 'info');
+    await page.waitForSelector('input[name="email"]', { timeout: 15000 });
+    await page.waitForSelector('input[name="password"]', { timeout: 15000 });
+    await page.waitForSelector('button[type="submit"]', { timeout: 15000 });
+
+    log('Typing credentials...', 'info');
+    // Clear and type email
+    await page.click('input[name="email"]', { clickCount: 3 });
+    await page.keyboard.press('Backspace');
+    await page.type('input[name="email"]', email, { delay: 50 });
+
+    // Clear and type password
+    await page.click('input[name="password"]', { clickCount: 3 });
+    await page.keyboard.press('Backspace');
+    await page.type('input[name="password"]', password, { delay: 50 });
+
+    log('Submitting login form...', 'info');
+    await Promise.all([
+      page.click('button[type="submit"]'),
+      page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 45000 })
+    ]);
+
+    const postLoginUrl = page.url();
+    if (postLoginUrl.includes('/login')) {
+      log('Authentication failed! Still on the login page (invalid credentials?).', 'error');
+      return false;
+    }
+
+    log('Authentication successful!', 'info');
+    return true;
+  } catch (err) {
+    log(`Automated login failed: ${err.message}`, 'error');
+    return false;
+  }
 }
 
 // Core Operations
@@ -227,6 +305,20 @@ async function startBot() {
       waitUntil: 'domcontentloaded',
       timeout: 60000,
     });
+    
+    // Check for login page and handle auto-login if needed
+    const currentUrl = page.url();
+    if (currentUrl.includes('/login')) {
+      log('Redirected to login page. Attempting automated authentication...', 'info');
+      const loginSuccess = await handleAutoLogin();
+      if (loginSuccess) {
+        log(`Navigating to target page: ${config.targetUrl}...`, 'info');
+        await page.goto(config.targetUrl, {
+          waitUntil: 'domcontentloaded',
+          timeout: 60000,
+        });
+      }
+    }
     
     log(`Successfully loaded: "${await page.title()}"`, 'info');
 
