@@ -288,6 +288,9 @@ async function startBot() {
       'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
     );
 
+    // Start screenshot loop immediately to show initial loading progress on dashboard
+    captureScreenshotLoop();
+
     // Page state handlers
     page.on('console', (msg) => {
       const type = msg.type();
@@ -323,7 +326,6 @@ async function startBot() {
     log(`Successfully loaded: "${await page.title()}"`, 'info');
 
     // Run event loops
-    captureScreenshotLoop();
     startAfkLoop();
   } catch (err) {
     log(`Failed to initiate browser session: ${err.message}`, 'error');
