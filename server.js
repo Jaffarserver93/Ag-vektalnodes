@@ -394,12 +394,18 @@ async function startBot() {
           const newPage = await target.page();
           if (!newPage) return;
 
-          // Wait a brief moment for page URL to populate
-          await new Promise(r => setTimeout(r, 1000));
-          const newUrl = newPage.url();
+          // Poll for page URL to resolve (wait up to 10 seconds if it initially loads as blank)
+          let newUrl = newPage.url();
+          let attempts = 0;
+          while ((newUrl === 'about:blank' || newUrl === '') && attempts < 10) {
+            await new Promise(r => setTimeout(r, 1000));
+            if (newPage.isClosed()) return;
+            newUrl = newPage.url();
+            attempts++;
+          }
 
-          // Skip default blank pages or the main page itself
-          if (newUrl === 'about:blank' || (mainPage && newPage === mainPage)) {
+          // Skip main page or if it remained blank
+          if (newUrl === 'about:blank' || newUrl === '' || (mainPage && newPage === mainPage)) {
             return;
           }
 
