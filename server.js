@@ -280,28 +280,47 @@ async function handleLinkPaysSolver(targetPage) {
         if (frame.url().includes('challenges.cloudflare.com')) continue;
 
         try {
-          clicked = await frame.evaluate(() => {
+          // Find the target element inside the frame
+          const targetHandle = await frame.evaluateHandle(() => {
             const elements = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"]'));
-            const target = elements.find(el => {
+            const found = elements.find(el => {
               const text = el.textContent.trim().toLowerCase();
               const value = el.value ? el.value.trim().toLowerCase() : '';
               const id = el.id ? el.id.toLowerCase() : '';
               return text.includes('continue to next') || value.includes('continue to next') || id === 'gobtn';
             });
-            
-            if (target) {
-              const rect = target.getBoundingClientRect();
+            if (found) {
+              const rect = found.getBoundingClientRect();
               const isVisible = rect.width > 0 && rect.height > 0;
-              const isDisabled = target.disabled || target.getAttribute('disabled') !== null;
-              
-              // Only click if the button is visible and NOT disabled (waiting for countdowns)
+              const isDisabled = found.disabled || found.getAttribute('disabled') !== null;
               if (isVisible && !isDisabled) {
-                target.click();
-                return true;
+                return found;
               }
             }
-            return false;
+            return null;
           });
+
+          const element = targetHandle.asElement();
+          if (element) {
+            log('Found matching "Continue to Next" button. Triggering click event...', 'info');
+            // Try standard DOM click
+            await frame.evaluate(el => el.click(), element);
+            
+            // Fallback: Perform a real mouse hover & click at its coordinate location
+            try {
+              const box = await element.boundingBox();
+              if (box) {
+                const centerX = box.x + box.width / 2;
+                const centerY = box.y + box.height / 2;
+                await targetPage.mouse.click(centerX, centerY);
+              }
+            } catch (err) {}
+            
+            clicked = true;
+            await targetHandle.dispose();
+          } else {
+            await targetHandle.dispose();
+          }
 
           if (clicked) {
             log(`Successfully clicked "Continue to Next" button in frame: ${frame.url()}`, 'info');
