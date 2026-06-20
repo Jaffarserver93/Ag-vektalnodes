@@ -36,7 +36,7 @@ let mainPage = null; // Stores reference to the primary VektalNodes tab
 let botStatus = 'stopped'; // 'stopped' or 'running'
 let uptimeStart = null;
 const logs = [];
-const maxLogs = 500;
+const maxLogs = 50;
 
 // Configuration defaults
 const config = {

@@ -95,6 +95,11 @@ function appendLog(logEntry) {
   logRow.appendChild(textSpan);
   logConsole.appendChild(logRow);
   
+  // Enforce max 50 log lines in dashboard DOM
+  while (logConsole.children.length > 50) {
+    logConsole.removeChild(logConsole.firstChild);
+  }
+  
   // Keep logs element scrolled to the bottom
   logConsole.parentElement.scrollTop = logConsole.parentElement.scrollHeight;
 }
@@ -348,6 +353,18 @@ configPreviewSpeed.addEventListener('input', () => {
 });
 
 btnSaveConfig.addEventListener('click', saveConfig);
+
+const btnCopyLogs = document.getElementById('btn-copy-logs');
+btnCopyLogs.addEventListener('click', () => {
+  const logLines = Array.from(logConsole.querySelectorAll('.log-line')).map(el => el.textContent).join('\n');
+  navigator.clipboard.writeText(logLines).then(() => {
+    const originalText = btnCopyLogs.textContent;
+    btnCopyLogs.textContent = '📋 Copied!';
+    setTimeout(() => btnCopyLogs.textContent = originalText, 2000);
+  }).catch(err => {
+    console.error('Failed to copy logs:', err);
+  });
+});
 
 btnClearLogs.addEventListener('click', () => {
   logConsole.innerHTML = '';
