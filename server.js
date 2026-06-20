@@ -256,6 +256,34 @@ async function handleAutoLogin() {
   }
 }
 
+// Click Open LinkPays Button
+async function clickLinkPaysButton() {
+  if (!page || page.isClosed()) return;
+  try {
+    log('Looking for "Open LinkPays" button...', 'info');
+    // Wait for the button to load
+    await page.waitForSelector('button.button-primary', { timeout: 15000 });
+
+    const clicked = await page.evaluate(() => {
+      const buttons = Array.from(document.querySelectorAll('button.button-primary'));
+      const target = buttons.find(b => b.textContent.trim().includes('Open LinkPays'));
+      if (target) {
+        target.click();
+        return true;
+      }
+      return false;
+    });
+
+    if (clicked) {
+      log('Clicked "Open LinkPays" button successfully!', 'info');
+    } else {
+      log('"Open LinkPays" button not found among primary buttons.', 'warning');
+    }
+  } catch (err) {
+    log(`Failed to click "Open LinkPays" button: ${err.message}`, 'warning');
+  }
+}
+
 // Core Operations
 async function startBot() {
   if (botStatus === 'running') {
@@ -330,6 +358,11 @@ async function startBot() {
     }
     
     log(`Successfully loaded: "${await page.title()}"`, 'info');
+
+    // If we successfully loaded the earn page, attempt to click the "Open LinkPays" button
+    if (page.url().includes('/earn')) {
+      await clickLinkPaysButton();
+    }
 
     // Run event loops
     startAfkLoop();
