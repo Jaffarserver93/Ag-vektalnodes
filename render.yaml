@@ -6,7 +6,7 @@ services:
     startCommand: npm start
     envVars:
       - key: PUPPETEER_CACHE_DIR
-        value: ./.cache/puppeteer
+        value: /opt/render/project/src/.cache/puppeteer
       - key: EMAIL
         sync: false
       - key: PASSWORD
