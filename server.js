@@ -263,31 +263,51 @@ async function handleAutoLogin() {
 async function handleLinkPaysSolver(targetPage) {
   if (!targetPage || targetPage.isClosed()) return;
   try {
-    log('LinkPays redirect page detected. Waiting 5 seconds for verification...', 'info');
-    await new Promise(r => setTimeout(r, 5000));
+    log('LinkPays redirect page detected. Starting automation check...', 'info');
 
-    if (targetPage.isClosed()) return;
+    // Poll every 1 second up to 15 seconds to handle loading/countdowns and solve inside iframes
+    const maxAttempts = 15;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      await new Promise(r => setTimeout(r, 1000));
+      if (targetPage.isClosed()) return;
 
-    log('Searching for "Continue to Next" button...', 'info');
-    const clicked = await targetPage.evaluate(() => {
-      const elements = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"]'));
-      const target = elements.find(el => {
-        const text = el.textContent.trim().toLowerCase();
-        const value = el.value ? el.value.trim().toLowerCase() : '';
-        return text.includes('continue to next') || value.includes('continue to next');
-      });
-      if (target) {
-        target.click();
-        return true;
+      let clicked = false;
+      const frames = targetPage.frames();
+      for (const frame of frames) {
+        try {
+          clicked = await frame.evaluate(() => {
+            const elements = Array.from(document.querySelectorAll('button, a, input[type="button"], input[type="submit"]'));
+            const target = elements.find(el => {
+              const text = el.textContent.trim().toLowerCase();
+              const value = el.value ? el.value.trim().toLowerCase() : '';
+              return text.includes('continue to next') || value.includes('continue to next');
+            });
+            if (target) {
+              target.click();
+              return true;
+            }
+            return false;
+          });
+
+          if (clicked) {
+            log(`Successfully clicked "Continue to Next" button in frame: ${frame.url()}`, 'info');
+            break;
+          }
+        } catch (e) {
+          // Ignore evaluation errors on cross-origin frames
+        }
       }
-      return false;
-    });
 
-    if (clicked) {
-      log('Clicked "Continue to Next" button successfully!', 'info');
-    } else {
-      log('"Continue to Next" button not found on this step.', 'warning');
+      if (clicked) {
+        return;
+      }
+
+      if (attempt % 5 === 0) {
+        log(`Waiting for "Continue to Next" button... (Attempt ${attempt}/${maxAttempts})`, 'info');
+      }
     }
+
+    log('"Continue to Next" button not found or could not be clicked after 15 seconds.', 'warning');
   } catch (err) {
     log(`LinkPays automation failed: ${err.message}`, 'warning');
   }
