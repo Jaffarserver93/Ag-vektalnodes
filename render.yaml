@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: vektal-afk-bot
+    env: node
+    buildCommand: ./render-build.sh
+    startCommand: npm start
+    envVars:
+      - key: PUPPETEER_CACHE_DIR
+        value: ./.cache/puppeteer
+      - key: EMAIL
+        sync: false
+      - key: PASSWORD
+        sync: false
