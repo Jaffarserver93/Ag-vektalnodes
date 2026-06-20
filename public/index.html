@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VektalNodes AFK Bot Dashboard</title>
+  <!-- Google Fonts: Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="glass-bg"></div>
+
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-logo">
+          <div class="logo-orb"></div>
+        </div>
+        <div class="brand-text">
+          <h1>VEKTAL<span class="gradient-text">BOT</span></h1>
+          <p>Premium Puppeteer AFK System</p>
+        </div>
+      </div>
+      
+      <div class="header-status">
+        <div class="status-indicator">
+          <span class="indicator-pulse" id="status-pulse"></span>
+          <span class="status-text" id="status-text">DISCONNECTED</span>
+        </div>
+        <div class="uptime-badge">
+          <span class="badge-label">UPTIME</span>
+          <span class="badge-value" id="uptime-value">00:00:00</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="dashboard-container">
+    <!-- Grid System -->
+    <div class="dashboard-grid">
+      
+      <!-- Column 1: Live Interactive Monitor & Keyboard Controls -->
+      <section class="grid-col-main">
+        
+        <!-- Live Preview Card -->
+        <div class="card preview-card">
+          <div class="card-header">
+            <div class="header-title-group">
+              <div class="header-icon monitor-icon"></div>
+              <h2>Interactive Live Preview</h2>
+            </div>
+            <div class="preview-actions">
+              <span class="fps-badge" id="fps-counter">0 FPS</span>
+              <button class="btn btn-secondary btn-sm" id="btn-reload" title="Reload Browser Tab">
+                <span class="icon-reload"></span> Reload
+              </button>
+            </div>
+          </div>
+          
+          <div class="card-body">
+            <div class="browser-info-bar">
+              <div class="browser-address">
+                <span class="address-lock"></span>
+                <input type="text" id="browser-url-input" value="https://vektalnodes.in/earn" placeholder="https://..." spellcheck="false">
+                <button id="btn-navigate" class="btn btn-primary btn-xs">Go</button>
+              </div>
+              <div class="browser-title" id="browser-title-text">None</div>
+            </div>
+
+            <div class="canvas-wrapper">
+              <div class="canvas-overlay" id="canvas-overlay">
+                <div class="overlay-spinner"></div>
+                <p id="overlay-message">Bot is Stopped. Click Start to initialize.</p>
+              </div>
+              <canvas id="preview-canvas" width="1280" height="800"></canvas>
+            </div>
+
+            <div class="canvas-footer-help">
+              <span class="info-icon">ℹ</span> Left-click inside the screen to simulate clicks. Press focused canvas to type or use the simulator below.
+            </div>
+          </div>
+        </div>
+
+        <!-- Interactive Text Input & Simulator -->
+        <div class="card interaction-card">
+          <div class="card-header">
+            <div class="header-title-group">
+              <div class="header-icon keyboard-icon"></div>
+              <h3>Input & Keyboard Simulator</h3>
+            </div>
+          </div>
+          <div class="card-body flex-col gap-sm">
+            <div class="input-simulator-group">
+              <input type="text" id="text-simulator-input" placeholder="Type text to send to browser..." autocomplete="off">
+              <button class="btn btn-primary" id="btn-send-text">Send Text</button>
+            </div>
+            
+            <div class="keyboard-presets-row">
+              <button class="key-preset" data-key="Enter">⏎ Enter</button>
+              <button class="key-preset" data-key="Backspace">⌫ Backspace</button>
+              <button class="key-preset" data-key="Tab">⇥ Tab</button>
+              <button class="key-preset" data-key="Space">Space</button>
+              <button class="key-preset" data-key="ArrowUp">▲ Up</button>
+              <button class="key-preset" data-key="ArrowDown">▼ Down</button>
+              <button class="key-preset" data-key="ArrowLeft">◀ Left</button>
+              <button class="key-preset" data-key="ArrowRight">▶ Right</button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+      <!-- Column 2: Controls, Config & Audit Logs -->
+      <section class="grid-col-sidebar">
+        
+        <!-- Controls & Configuration Card -->
+        <div class="card controls-card">
+          <div class="card-header">
+            <div class="header-title-group">
+              <div class="header-icon settings-icon"></div>
+              <h2>Control Center</h2>
+            </div>
+          </div>
+          
+          <div class="card-body flex-col gap-md">
+            
+            <!-- Quick Action Buttons -->
+            <div class="action-buttons-group">
+              <button class="btn btn-success btn-lg" id="btn-start">
+                <span class="pulse-ring"></span> Start Bot
+              </button>
+              <button class="btn btn-danger btn-lg" id="btn-stop" disabled>
+                Stop Bot
+              </button>
+            </div>
+
+            <hr class="card-divider">
+
+            <!-- Bot Settings -->
+            <div class="settings-form">
+              <h3>Configuration</h3>
+              
+              <div class="form-group">
+                <label for="config-target-url">Default Target URL</label>
+                <input type="url" id="config-target-url" value="https://vektalnodes.in/earn">
+              </div>
+
+              <div class="form-group">
+                <div class="label-row">
+                  <label for="config-afk-interval">AFK Loop Interval</label>
+                  <span class="form-value-badge" id="afk-interval-badge">30s</span>
+                </div>
+                <input type="range" id="config-afk-interval" min="10" max="300" step="5" value="30">
+              </div>
+
+              <div class="form-group">
+                <label for="config-click-selector">Auto-Click Selector (CSS)</label>
+                <input type="text" id="config-click-selector" placeholder="e.g. button.claim-coins" value="">
+                <span class="field-hint">Optional: CSS selector to click during AFK checks</span>
+              </div>
+
+              <div class="form-group">
+                <div class="label-row">
+                  <label for="config-preview-speed">Live Preview Speed</label>
+                  <span class="form-value-badge" id="preview-speed-badge">100ms</span>
+                </div>
+                <input type="range" id="config-preview-speed" min="50" max="1000" step="50" value="100">
+              </div>
+
+              <button class="btn btn-secondary w-full" id="btn-save-config">Apply Configuration</button>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- Metrics Card -->
+        <div class="card metrics-card">
+          <div class="card-body metrics-grid">
+            <div class="metric-item">
+              <span class="metric-label">RSS RAM</span>
+              <span class="metric-value" id="metric-ram">0 MB</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">CPU TIME</span>
+              <span class="metric-value" id="metric-cpu">0s</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-label">SYS MEM</span>
+              <span class="metric-value" id="metric-sysmem">0%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Audit Log Card -->
+        <div class="card logs-card">
+          <div class="card-header">
+            <div class="header-title-group">
+              <div class="header-icon console-icon"></div>
+              <h2>Audit Log</h2>
+            </div>
+            <button class="btn btn-icon btn-xs" id="btn-clear-logs" title="Clear Logs">🗑</button>
+          </div>
+          <div class="card-body">
+            <div class="log-console-container">
+              <div class="log-console" id="log-console">
+                <div class="log-line log-info">System initialized. Awaiting dashboard connection...</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <footer class="app-footer">
+    <p>&copy; 2026 VEKTALBOT • Premium Anti-Idle Panel. Operating in Secure Sandbox.</p>
+  </footer>
+</body>
+</html>

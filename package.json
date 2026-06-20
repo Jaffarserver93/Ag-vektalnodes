@@ -1,0 +1,18 @@
+{
+  "name": "vektal-afk-bot",
+  "version": "1.0.0",
+  "description": "AFK Bot for vektalnodes.in with a premium interactive live preview dashboard",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "ws": "^8.16.0",
+    "puppeteer": "^22.10.0",
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
+  },
+  "author": "Antigravity",
+  "license": "ISC"
+}
